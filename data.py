@@ -10,7 +10,8 @@ def get_nodes():
     bicing = DataFrame.from_records(pd.read_json(url)['data']['stations'], index='station_id')
     G = nx.Graph()
     for st in bicing.itertuples():
-        G.add_node(st.Index, lat=st.lat, lon=st.lon)
+        position = (st.lon, st.lat)
+        G.add_node(st.Index, pos=position)
     return G
 
 def number_of_nodes(G):
@@ -22,7 +23,7 @@ def number_of_edges(G):
 def plot_graph(G):
     m_bcn = StaticMap(800, 800)
     for node in list(G.nodes(data=True)):
-        marker = CircleMarker((node[1]['lon'], node[1]['lat']), 'red', 4)
+        marker = CircleMarker(node[1]['pos'], 'red', 4)
         m_bcn.add_marker(marker)
     for edge in list(G.edges()):
         line = Line(coords, 'blue', 3)
