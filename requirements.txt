@@ -1,0 +1,7 @@
+# Requirements for the project. No special version is needed (and therefore not specified).
+pandas
+networkx
+haversine
+geopy
+staticmap
+python-telegram-bot
