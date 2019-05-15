@@ -20,16 +20,26 @@ def get_nodes():
         G.add_node(st.Index, pos=position)
     return G, bicing
 
+
+##def get_edges():
+    ##en funció de d
+    ##incloure ja els pesos en cada cas entre estacions (distancia/velocitat = temps)
+
 def number_of_nodes(G):
     return G.number_of_nodes()
 
 def number_of_edges(G):
     return G.number_of_edges()
 
+def number_of_connected_components(G):
+    return #G.number_connected_components()
+
+
 """
 Plots the graph as a map, using the coordinates of the nodes.
 Takes a NetworkX Graph and returns the image
 """
+
 def plot_graph(G):
     map = StaticMap(800, 800)
     # Plotting nodes
@@ -69,3 +79,21 @@ def addressesTOcoordinates(addresses):
         return (location1.latitude, location1.longitude), (location2.latitude, location2.longitude)
     except:
         return None
+
+def route(addresses, G):
+    '''
+    Returns the most shortest path in time between two given addresses
+    taking into account the corresponding velocities when walking or by bike.
+    '''
+
+    coords = addressesTOcoordinates(addresses)
+    if coords is None: print("Adreça no trobada")
+    else:
+        ##afegir 2 nodes al graf (tenint en compte d)
+        coord_origen, coord_desti = coords
+        G.add_node(st.Index, pos=coord_origen)
+        G.add_node(st.Index, pos=coord_desti)
+        #for within_distance()
+
+        ##esborrar nodes del graf
+
