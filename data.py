@@ -23,20 +23,34 @@ def get_nodes():
 """
 To create the edges regarding the maximum distance allowed d, we'll create out of our map 
 (using its corresponding bounding box) a grid made of little squares of size d^2.
+The origin will correspond to the left-down side of the bounding box with increasing x's to the right
+and increasing y's above.
+Likewise, the little squares' location within the grid will be expressed like a Matrix.
+The leftest and lowest square will have coordinates (x,y) = (0,0). 
+
+##Shall we start at 1 like in Python????
+
 Therefore, finding the neighbours of a node that satisfy the condition of proximity will have
 a linear cost instead of a quadratic one.
 """
 
+#Returns the longitude of a node.
+def lon (node):
+    return node[1]['pos'][0]
+
+#Returns the latitude of a node.
+def lat (node):
+    return node[1]['pos'][1]
+
 #Returns the dimensions of the corresponding bounding box of G and the minimum longitude and latitude.
 def bbox (G):
-    #nodes_periphery = periphery(G, e=None, usebounds=False) #Returns a list of nodes in the periphery of the graph
-    #for node in nodes_periphery: ##no sé si és necessari fer: list(periphery)
-    #O BÉ:
+    #We initialize the maximums and minimums of longitude and latitude to the first node
+    position = nx.get_node_attributes(G, 'pos')
+    xmax, xmin = position[1][0], position[1][0] ##No sé com fer-ho per només haver d'accedir al 1er node
+    ymax, ymin = position[1][1], position[1][1]
 
     for node in list(G.nodes(data=True)):
-        xmax, xmin, ymax, ymin = 0, 0, 0, 0
-        x = node[1]['pos'][0]
-        y = node[1]['pos'][1]
+        x, y = lon(node), lat(node)
         if x > xmax:
             xmax = x
         if x < xmin:
@@ -45,21 +59,34 @@ def bbox (G):
             ymax = y
         if y < ymin:
             ymin = y
-    
 
-    width = xmax - xmin
-    height = ymax - ymin
+    return xmin, ymin, xmax, ymax
 
-    return width, height, xmin, ymin
+# Returns in which square (x,y) of the grid the node is located
+def square (node, xmin, ymin, d):
+    x = haversine ((xmin, lat(node)), node[1]['pos'], unit='m')
+    y = haversine ((lon(node), ymin), node[1]['pos'], unit='m')
+    column = x // d #+1 if we started at (1,1) (see comment above)
+    row = y // d #+1
+    return int(column), int(row)
 
 #Returns a map matching each square with all the nodes within it
-def grid (G):
-    width, height, xmin, ymin= bbox (G)
+def grid (G, d):
+    xmin, ymin, xmax, ymax = bbox (G)
+    width = haversine ((xmin, 0), (xmax, 0), unit='m')
+    height = haversine ((ymin, 0), (ymax, 0), unit='m')
+    print ("width and height of bbox in meters: ", width, height)
 
+    columns = width // d #+1
+    rows = height // d #+1
 
-# Returns in which square of the grid the node is located
-def square (G, node):
-    return 
+    nodes_per_square = {}
+    for node in list(G.nodes(data=True)):
+        column_row = square (node, xmin, ymin, d)
+        #nodes_per_square[column_row].push_back(node) ##Aquí crec que no puc posar com a key una posició creada per 2 int (x, y) per cada square, potser caldria fer una struct???
+    return nodes_per_square
+ 
+
 ##en funció de d
 ##incloure ja els pesos en cada cas entre estacions (distancia/velocitat = temps)
 def get_edges(G, d, how):
@@ -71,8 +98,6 @@ def get_edges(G, d, how):
             G.add_edge()
         """
     return G
-
-    
 
 def number_of_nodes(G):
     return G.number_of_nodes()
