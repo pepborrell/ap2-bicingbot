@@ -5,22 +5,22 @@ from geopy.geocoders import Nominatim
 import networkx as nx
 from staticmap import StaticMap, CircleMarker, Line
 
-"""
+'''
 Downloads the data from the internet and places the stations in a NetworkX Graph.
 Returns the graph, with the index and position in the node's own data and the
 DataFrame containing all the downloaded data.
-The position data is a tuple of the form (longitude, latitude)
-"""
+The position data is a tuple of the form (latitude, longitude)
+'''
 def get_nodes():
     url = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_information'
     bicing = DataFrame.from_records(pd.read_json(url)['data']['stations'], index='station_id')
     G = nx.Graph()
     for st in bicing.itertuples():
-        position = (st.lon, st.lat)
+        position = (st.lat, st.lon)
         G.add_node(st.Index, pos=position) ##No hauria de ser index en minúscula?
     return G, bicing
 
-"""
+'''
 To create the edges regarding the maximum distance allowed d, we'll create out of our map
 (using its corresponding bounding box) a grid made of little squares of size d^2.
 The origin will correspond to the left-down side of the bounding box with increasing x's to the right
@@ -32,25 +32,26 @@ The leftest and lowest square will have coordinates (x,y) = (0,0).
 
 Therefore, finding the neighbours of a node that satisfy the condition of proximity will have
 a linear cost instead of a quadratic one.
-"""
-
-#Returns the longitude of a node.
-def lon (node):
-    return node[1]['pos'][0]
+'''
 
 #Returns the latitude of a node.
 def lat (node):
-    return node[1]['pos'][1]
+    return node[1]['pos'][0]
 
-#Returns the dimensions of the corresponding bounding box of G and the minimum longitude and latitude.
+#Returns the longitude of a node.
+def lon (node):
+    return node[1]['pos'][1]
+'''
+Returns the dimensions of the corresponding bounding box of G and the minimum longitude and latitude.
+'''
 def bbox (G):
-    #We initialize the maximums and minimums of longitude and latitude to the first node
+    # We initialize the maximums and minimums of longitude and latitude to the first node
     position = G.nodes[0]['pos']
-    xmax = xmin = position[0] ##No sé com fer-ho per només haver d'accedir al 1er node. Així millor?
+    xmax = xmin = position[0] # No sé com fer-ho per només haver d'accedir al 1er node. Així millor?
     ymax = ymin = position[1]
 
     for node in list(G.nodes(data=True)):
-        x, y = lon(node), lat(node)
+        x, y = lat(node), lon(node)
         if x > xmax:
             xmax = x
         if x < xmin:
@@ -62,20 +63,25 @@ def bbox (G):
 
     return xmin, ymin, xmax, ymax
 
-# Returns in which square (x,y) of the grid the node is located
-# The haversine function wants the input to be 2 tuples of the form (lat, lon)
+'''
+Returns the square (x,y) of the grid in which the node is located.
+The node is a NetworkX graph node.
+Remember: The haversine function wants the input to be 2 tuples of the form (lat, lon)
+'''
 def square (node, xmin, ymin, d):
-    x = haversine ((xmin, lat(node)), node[1]['pos'], unit='m')
-    y = haversine ((lon(node), ymin), node[1]['pos'], unit='m')
+    x = haversine ((xmin, lon(node)), node[1]['pos'], unit='m')
+    y = haversine ((lat(node), ymin), node[1]['pos'], unit='m')
     column = x // d #+1 if we started at (1,1) (see comment above)
     row = y // d #+1
-    return int(column), int(row)
+    return column, row
 
-#Returns a map matching each square with all the nodes within it
+'''
+Returns a map matching each square with all the nodes within it
+'''
 def grid (G, d):
     xmin, ymin, xmax, ymax = bbox (G)
-    width = haversine ((xmin, 0), (xmax, 0), unit='m')
-    height = haversine ((ymin, 0), (ymax, 0), unit='m')
+    width = haversine ((xmin, ymin), (xmax, ymin), unit='m')
+    height = haversine ((xmin, ymin), (xmin, ymax), unit='m')
     print ('width and height of bbox in meters: ', width, height)
 
     columns = width // d #+1
@@ -110,10 +116,10 @@ def number_of_connected_components(G):
     return nx.number_connected_components(G)
 
 
-"""
+'''
 Plots the graph as a map, using the coordinates of the nodes.
 Takes a NetworkX Graph and returns the image
-"""
+'''
 def plot_graph(G):
     map = StaticMap(800, 800)
     # Plotting nodes
