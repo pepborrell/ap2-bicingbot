@@ -64,16 +64,21 @@ def bbox (G):
     return xmin, ymin, xmax, ymax
 
 '''
-Returns the square (x,y) of the grid in which the node is located.
-The node is a NetworkX graph node.
+Returns the square of the grid in which the node is located.
+The grid is numbered in the following way:
+| 0 | 1 | ... | m-1  |
+| . | . | ... | ...  |
+| . | . | ... |n*m-1 |
+In this way, a node in column x and row y is in the square number y*n + x,
+The input node is a NetworkX graph node.
 Remember: The haversine function wants the input to be 2 tuples of the form (lat, lon)
 '''
-def square (node, xmin, ymin, d):
+def square (node, xmin, ymin, d, n):
     x = haversine ((xmin, lon(node)), node[1]['pos'], unit='m')
     y = haversine ((lat(node), ymin), node[1]['pos'], unit='m')
     column = x // d #+1 if we started at (1,1) (see comment above)
     row = y // d #+1
-    return column, row
+    return y*n + x
 
 '''
 Returns a map matching each square with all the nodes within it
@@ -84,13 +89,13 @@ def grid (G, d):
     height = haversine ((xmin, ymin), (xmin, ymax), unit='m')
     print ('width and height of bbox in meters: ', width, height)
 
-    columns = width // d #+1
-    rows = height // d #+1
+    n_columns = width // d + 1
+    n_rows = height // d #+1
 
     nodes_per_square = {}
     for node in list(G.nodes(data=True)):
-        column_row = square (node, xmin, ymin, d)
-        #nodes_per_square[column_row].push_back(node) ##Aquí crec que no puc posar com a key una posició creada per 2 int (x, y) per cada square, potser caldria fer una struct???
+        square = square (node, xmin, ymin, d, n_rows)
+        nodes_per_square[square].append(node)
     return nodes_per_square
 
 
@@ -162,14 +167,13 @@ def addressesTOcoordinates(addresses):
 
 def route(addresses, G):
     '''
-    Returns the most shortest path in time between two given addresses
+    Returns the shortest path in time between two given addresses
     taking into account the corresponding velocities when walking or by bike.
     '''
-
     coords = addressesTOcoordinates(addresses)
     if coords is None: print("Adreça no trobada")
     else:
-        ##afegir 2 nodes al graf (tenint en compte d)
+        # Adding 2 nodes to the graph (taking d into account)
         coord_origen, coord_desti = coords
         G.add_node('o', pos=coord_origen)
         G.add_node('d', pos=coord_desti)
