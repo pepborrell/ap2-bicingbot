@@ -17,13 +17,62 @@ def get_nodes():
     G = nx.Graph()
     for st in bicing.itertuples():
         position = (st.lon, st.lat)
-        G.add_node(st.Index, pos=position)
+        G.add_node(st.Index, pos=position) ##No hauria de ser index en minúscula?
     return G, bicing
 
+"""
+To create the edges regarding the maximum distance allowed d, we'll create out of our map 
+(using its corresponding bounding box) a grid made of little squares of size d^2.
+Therefore, finding the neighbours of a node that satisfy the condition of proximity will have
+a linear cost instead of a quadratic one.
+"""
 
-##def get_edges():
-    ##en funció de d
-    ##incloure ja els pesos en cada cas entre estacions (distancia/velocitat = temps)
+#Returns the dimensions of the corresponding bounding box of G and the minimum longitude and latitude.
+def bbox (G):
+    #nodes_periphery = periphery(G, e=None, usebounds=False) #Returns a list of nodes in the periphery of the graph
+    #for node in nodes_periphery: ##no sé si és necessari fer: list(periphery)
+    #O BÉ:
+
+    for node in list(G.nodes(data=True)):
+        xmax, xmin, ymax, ymin = 0, 0, 0, 0
+        x = node[1]['pos'][0]
+        y = node[1]['pos'][1]
+        if x > xmax:
+            xmax = x
+        if x < xmin:
+            xmin = x
+        if y > ymax:
+            ymax = y
+        if y < ymin:
+            ymin = y
+    
+
+    width = xmax - xmin
+    height = ymax - ymin
+
+    return width, height, xmin, ymin
+
+#Returns a map matching each square with all the nodes within it
+def grid (G):
+    width, height, xmin, ymin= bbox (G)
+
+
+# Returns in which square of the grid the node is located
+def square (G, node):
+    return 
+##en funció de d
+##incloure ja els pesos en cada cas entre estacions (distancia/velocitat = temps)
+def get_edges(G, d, how):
+    ##bbox i map amb quadrat de la quadricula i llista de nodes a dins
+    for node in list(G.nodes(data=True)): 
+        square = square(node)
+        """
+        for neighbour in ##square del mapa
+            G.add_edge()
+        """
+    return G
+
+    
 
 def number_of_nodes(G):
     return G.number_of_nodes()
@@ -44,7 +93,7 @@ def plot_graph(G):
     map = StaticMap(800, 800)
     # Plotting nodes
     for node in list(G.nodes(data=True)):
-        marker = CircleMarker(node[1]['pos'], 'red', 4)
+        marker = CircleMarker(node[1]['pos'], 'red', 4) ##Perquè poses ['pos'] si node[1] ja és la posició?
         map.add_marker(marker)
     # Plotting edges
     for edge in list(G.edges()):
@@ -91,9 +140,12 @@ def route(addresses, G):
     else:
         ##afegir 2 nodes al graf (tenint en compte d)
         coord_origen, coord_desti = coords
-        G.add_node(st.Index, pos=coord_origen)
-        G.add_node(st.Index, pos=coord_desti)
-        #for within_distance()
+        G.add_node('o', pos=coord_origen)
+        G.add_node('d', pos=coord_desti)
+        
+        #for funcio < d, add edge amb pes el que sigui (inclos a la funcio)
+        ## min cami
 
         ##esborrar nodes del graf
-
+        G.remove_node('o')
+        G.remove_node('d')
