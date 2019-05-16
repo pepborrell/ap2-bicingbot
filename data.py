@@ -32,7 +32,7 @@ def number_of_edges(G):
     return G.number_of_edges()
 
 def number_of_connected_components(G):
-    return #G.number_connected_components()
+    return nx.number_connected_components(G)
 
 
 """

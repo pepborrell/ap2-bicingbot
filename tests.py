@@ -1,4 +1,4 @@
-from data import get_nodes, number_of_nodes, number_of_edges, number_of_connected_components, plot_graph
+from data import *
 
 G, bicing = get_nodes()
 print(number_of_nodes(G))
