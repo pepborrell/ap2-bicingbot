@@ -108,25 +108,28 @@ def check_edge (G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
         distance = haversine(node[1]['pos'],n_node[1]['pos'])
         if (distance < d):
-            G.add_edge(node[0], n_node[0], weight=distance/velocity) 
+            G.add_edge(node[0], n_node[0], time=distance/velocity) 
             
 
-#falta________________________________________________________________________________________________________________________
+# Crec que ja està
 def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
     pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
 
-    if pos_grid:
-        check_edge(G, d, node, nodes_per_square, pos_grid + 1, velocity)
+    if pos_grid > 0:
         check_edge(G, d, node, nodes_per_square, pos_grid - 1, velocity)
-    if pos_grig :
+    if pos_grid < n_columns - 1:
+        check_edge(G, d, node, nodes_per_square, pos_grid + 1, velocity)
+    if pos_grid >= n_columns:
         check_edge(G, d, node, nodes_per_square, pos_grid - n_columns, velocity)
-        if :
+        if pos_grid > 0:
             check_edge(G, d, node, nodes_per_square, pos_grid - n_columns - 1, velocity)
+        if pos_grid < n_columns - 1:
             check_edge(G, d, node, nodes_per_square, pos_grid - n_columns + 1, velocity)
-    if pos_grid :
+    if pos_grid < len(nodes_per_square) - n_columns:
         check_edge(G, d, node, nodes_per_square, pos_grid + n_columns, velocity)
-        if:
+        if pos_grid > 0:
             check_edge(G, d, node, nodes_per_square, pos_grid + n_columns - 1, velocity)
+        if pos_grid < n_columns - 1:
             check_edge(G, d, node, nodes_per_square, pos_grid + n_columns + 1, velocity)
 
 def get_edges(G, d):
@@ -157,16 +160,16 @@ Plots the graph as a map, using the coordinates of the nodes.
 Takes a NetworkX Graph and returns the image
 '''
 def plot_graph(G):
-    map = StaticMap(800, 800)
+    city_map = StaticMap(800, 800)
     # Plotting nodes
     for node in list(G.nodes(data=True)):
         marker = CircleMarker(node[1]['pos'][::-1], 'red', 4) ##Perquè poses ['pos'] si node[1] ja és la posició?
-        map.add_marker(marker)
+        city_map.add_marker(marker)
     # Plotting edges
     for edge in list(G.edges()):
         line = Line(G.nodes[edge[0]]['pos'][::-1], G.nodes[edge[1]]['pos'][::-1], 'blue', 3)
-        map.add_line(line)
-    image = map.render()
+        city_map.add_line(line)
+    image = city_map.render()
     return image
 
 def addressesTOcoordinates(addresses):
@@ -211,7 +214,18 @@ def route(addresses, G, d, info):
         G.add_node('d', pos=coord_desti)
 
         neighbours (G, d, node, info, walk_v)
+        
+        path = nx.shortest_path(G, source='o', target='d', weight='time')
 
         ##esborrar nodes del graf
         G.remove_node('o')
         G.remove_node('d')
+        
+        return path
+        
+def plot_route(addresses, G, d, info):
+    H = nx.path_graph(route(addresses, G, d, info))
+    for x in H.nodes():
+        print(x)
+        
+    return plot_graph(H)
