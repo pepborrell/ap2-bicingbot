@@ -84,7 +84,7 @@ def square (node, xmin, ymin, d, n_columns):
     return int(row*n_columns + column)
 
 '''
-Returns a list ' matching each square with all the nodes within it
+Returns a list matching each square with all the nodes within it
 '''
 def grid (G, d, X):
     xmin, ymin, xmax, ymax = X
@@ -102,14 +102,14 @@ def grid (G, d, X):
     return nodes_per_square, n_columns
 
 '''
-Changes the 
+Changes the
 '''
 def check_edge (G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
         distance = haversine(node[1]['pos'],n_node[1]['pos'])
         if (distance < d):
-            G.add_edge(node[0], n_node[0], time=distance/velocity) 
-            
+            G.add_edge(node[0], n_node[0], time=distance/velocity)
+
 
 # Crec que ja està
 def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
@@ -143,7 +143,7 @@ def get_edges(G, d):
 def build_graph(d):
     G, bicing = get_nodes()
     info = get_edges(G, d)
-    return G, info
+    return G, bicing, info
 
 def number_of_nodes(G):
     return G.number_of_nodes()
@@ -160,15 +160,17 @@ Plots the graph as a map, using the coordinates of the nodes.
 Takes a NetworkX Graph and returns the image
 '''
 def plot_graph(G):
-    city_map = StaticMap(800, 800)
+    city_map = StaticMap(1000, 1000)
     # Plotting nodes
     for node in list(G.nodes(data=True)):
-        marker = CircleMarker(node[1]['pos'][::-1], 'red', 4) ##Perquè poses ['pos'] si node[1] ja és la posició?
+        marker = CircleMarker(node[1]['pos'][::-1], 'red', 4)
         city_map.add_marker(marker)
+
     # Plotting edges
     for edge in list(G.edges()):
-        line = Line(G.nodes[edge[0]]['pos'][::-1], G.nodes[edge[1]]['pos'][::-1], 'blue', 3)
+        line = Line((G.nodes[edge[0]]['pos'][::-1], G.nodes[edge[1]]['pos'][::-1]), 'blue', 1)
         city_map.add_line(line)
+
     image = city_map.render()
     return image
 
@@ -213,19 +215,24 @@ def route(addresses, G, d, info):
         G.add_node('o', pos=coord_origen)
         G.add_node('d', pos=coord_desti)
 
-        neighbours (G, d, node, info, walk_v)
-        
+        neighbours (G, d, ('o', G.nodes['o']), info[0], info[1], info[2], walk_v)
+        neighbours (G, d, ('d', G.nodes['d']), info[0], info[1], info[2], walk_v)
+
         path = nx.shortest_path(G, source='o', target='d', weight='time')
 
         ##esborrar nodes del graf
         G.remove_node('o')
         G.remove_node('d')
-        
+
         return path
-        
+
 def plot_route(addresses, G, d, info):
-    H = nx.path_graph(route(addresses, G, d, info))
-    for x in H.nodes():
-        print(x)
-        
+    path = route(addresses, G, d, info)
+    if path is None:
+        return None
+    H = nx.path_graph(path)
+
+    for x in list(H.nodes()):
+        H.nodes[x]['pos'] = G.nodes[x]['pos']
+
     return plot_graph(H)
