@@ -17,7 +17,7 @@ def get_nodes():
     G = nx.Graph()
     for st in bicing.itertuples():
         position = (st.lat, st.lon)
-        G.add_node(st.Index, pos=position) ##No hauria de ser index en minúscula?
+        G.add_node(st.Index, pos=position)
     return G, bicing
 
 '''
@@ -26,28 +26,31 @@ To create the edges regarding the maximum distance allowed d, we'll create out o
 The origin will correspond to the left-down side of the bounding box with increasing x's to the right
 and increasing y's above.
 Likewise, the little squares' location within the grid will be expressed like a Matrix.
-The leftest and lowest square will have coordinates (x,y) = (0,0).
-
-##Shall we start at 1 like in Python????
+The leftest and highest square will have the index 0.
 
 Therefore, finding the neighbours of a node that satisfy the condition of proximity will have
 a linear cost instead of a quadratic one.
 '''
 
-#Returns the latitude of a node.
+'''
+Returns the latitude of a node.
+'''
 def lat (node):
     return node[1]['pos'][0]
 
-#Returns the longitude of a node.
+'''
+Returns the longitude of a node.
+'''
 def lon (node):
     return node[1]['pos'][1]
+
 '''
 Returns the dimensions of the corresponding bounding box of G and the minimum longitude and latitude.
 '''
 def bbox (G):
     # We initialize the maximums and minimums of longitude and latitude to the first node
-    position = G.nodes[0]['pos']
-    xmax = xmin = position[0] # No sé com fer-ho per només haver d'accedir al 1er node. Així millor?
+    position = G.nodes[1]['pos']
+    xmax = xmin = position[0]
     ymax = ymin = position[1]
 
     for node in list(G.nodes(data=True)):
@@ -73,43 +76,71 @@ In this way, a node in column x and row y is in the square number y*n + x,
 The input node is a NetworkX graph node.
 Remember: The haversine function wants the input to be 2 tuples of the form (lat, lon)
 '''
-def square (node, xmin, ymin, d, n):
+def square (node, xmin, ymin, d, n_columns):
     x = haversine ((xmin, lon(node)), node[1]['pos'], unit='m')
     y = haversine ((lat(node), ymin), node[1]['pos'], unit='m')
-    column = x // d #+1 if we started at (1,1) (see comment above)
-    row = y // d #+1
-    return y*n + x
+    column = x // d
+    row = y // d
+    return int(row*n_columns + column)
 
 '''
-Returns a map matching each square with all the nodes within it
+Returns a list ' matching each square with all the nodes within it
 '''
-def grid (G, d):
-    xmin, ymin, xmax, ymax = bbox (G)
+def grid (G, d, X):
+    xmin, ymin, xmax, ymax = X
     width = haversine ((xmin, ymin), (xmax, ymin), unit='m')
     height = haversine ((xmin, ymin), (xmin, ymax), unit='m')
     print ('width and height of bbox in meters: ', width, height)
 
-    n_columns = width // d + 1
-    n_rows = height // d #+1
+    n_columns = int(width // d + 1)
+    n_rows = int(height // d + 1)
 
-    nodes_per_square = {}
+    nodes_per_square = [[] for i in range(n_columns*n_rows)]
     for node in list(G.nodes(data=True)):
-        square = square (node, xmin, ymin, d, n_rows)
-        nodes_per_square[square].append(node)
-    return nodes_per_square
+        sq = square (node, xmin, ymin, d, n_columns)
+        nodes_per_square[sq].append(node)
+    return nodes_per_square, n_columns
 
+'''
+Changes the 
+'''
+def check_edge (G, d, node, nodes_per_square, n_square, velocity):
+    for n_node in nodes_per_square[n_square]:
+        distance = haversine(node[1]['pos'],n_node[1]['pos'])
+        if (distance < d):
+            G.add_edge(node[0], n_node[0], weight=distance/velocity) 
+            
 
-##en funció de d
-##incloure ja els pesos en cada cas entre estacions (distancia/velocitat = temps)
-def get_edges(G, d, how):
-    ##bbox i map amb quadrat de la quadricula i llista de nodes a dins
+#falta________________________________________________________________________________________________________________________
+def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
+    pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
+
+    if pos_grid:
+        check_edge(G, d, node, nodes_per_square, pos_grid + 1, velocity)
+        check_edge(G, d, node, nodes_per_square, pos_grid - 1, velocity)
+    if pos_grig :
+        check_edge(G, d, node, nodes_per_square, pos_grid - n_columns, velocity)
+        if :
+            check_edge(G, d, node, nodes_per_square, pos_grid - n_columns - 1, velocity)
+            check_edge(G, d, node, nodes_per_square, pos_grid - n_columns + 1, velocity)
+    if pos_grid :
+        check_edge(G, d, node, nodes_per_square, pos_grid + n_columns, velocity)
+        if:
+            check_edge(G, d, node, nodes_per_square, pos_grid + n_columns - 1, velocity)
+            check_edge(G, d, node, nodes_per_square, pos_grid + n_columns + 1, velocity)
+
+def get_edges(G, d):
+    bbox_coords = bbox (G)
+    bike_v = 1000 # meters/hour
+    nodes_per_square, n_columns = grid (G, d, bbox_coords)
     for node in list(G.nodes(data=True)):
-        square = square(node)
-        """
-        for neighbour in ##square del mapa
-            G.add_edge()
-        """
-    return G
+        neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, bike_v)
+    return nodes_per_square, bbox_coords, n_columns
+
+def build_graph(d):
+    G, bicing = get_nodes()
+    info = get_edges(G, d)
+    return G, info
 
 def number_of_nodes(G):
     return G.number_of_nodes()
@@ -129,11 +160,11 @@ def plot_graph(G):
     map = StaticMap(800, 800)
     # Plotting nodes
     for node in list(G.nodes(data=True)):
-        marker = CircleMarker(node[1]['pos'], 'red', 4) ##Perquè poses ['pos'] si node[1] ja és la posició?
+        marker = CircleMarker(node[1]['pos'][::-1], 'red', 4) ##Perquè poses ['pos'] si node[1] ja és la posició?
         map.add_marker(marker)
     # Plotting edges
     for edge in list(G.edges()):
-        line = Line(G.nodes[edge[0]]['pos'], G.nodes[edge[1]]['pos'], 'blue', 3)
+        line = Line(G.nodes[edge[0]]['pos'][::-1], G.nodes[edge[1]]['pos'][::-1], 'blue', 3)
         map.add_line(line)
     image = map.render()
     return image
@@ -165,12 +196,13 @@ def addressesTOcoordinates(addresses):
     except:
         return None
 
-def route(addresses, G):
-    '''
-    Returns the shortest path in time between two given addresses
-    taking into account the corresponding velocities when walking or by bike.
-    '''
+'''
+Returns the shortest path in time between two given addresses
+taking into account the corresponding velocities when walking or by bike.
+'''
+def route(addresses, G, d, info):
     coords = addressesTOcoordinates(addresses)
+    walk_v = 4000 # meters/hour
     if coords is None: print("Adreça no trobada")
     else:
         # Adding 2 nodes to the graph (taking d into account)
@@ -178,8 +210,7 @@ def route(addresses, G):
         G.add_node('o', pos=coord_origen)
         G.add_node('d', pos=coord_desti)
 
-        #for funcio < d, add edge amb pes el que sigui (inclos a la funcio)
-        ## min cami
+        neighbours (G, d, node, info, walk_v)
 
         ##esborrar nodes del graf
         G.remove_node('o')

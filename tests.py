@@ -1,6 +1,6 @@
-from data import *
+from data_v2 import *
 
-G, bicing = get_nodes()
+G = build_graph(1000)
 print(number_of_nodes(G))
 print(number_of_edges(G))
 print(number_of_connected_components(G))
