@@ -107,13 +107,18 @@ Changes the
 def check_edge (G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
         distance = haversine(node[1]['pos'],n_node[1]['pos'])
-        if (distance < d):
+        if (distance < d and n_node != node): #<=?
             G.add_edge(node[0], n_node[0], time=distance/velocity)
 
 
-# Crec que ja està
+# Crec que ja està:
+#però enlloc de mirar si pos_grid > 0 (per exemple en el 1er if) no s'hauria de mirar si pos_grid no està a cap posició múltiple de m?
+#és a dir enlloc de comprovar-ho per la primera comprovar-ho per totes les del costat esquerre???
+#tipus: if pos_grid%n_columns == 0 --> Ho he deixat comentat com crec que hauria de ser: què n'opines?
 def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
     pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
+    #Hauríem d'ajuntar-lo amb tots els nodes de la seva propia casella no també?
+    check_edge(G, d, node, nodes_per_square, pos_grid, velocity)
 
     if pos_grid > 0:
         check_edge(G, d, node, nodes_per_square, pos_grid - 1, velocity)
@@ -131,6 +136,25 @@ def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
             check_edge(G, d, node, nodes_per_square, pos_grid + n_columns - 1, velocity)
         if pos_grid < n_columns - 1:
             check_edge(G, d, node, nodes_per_square, pos_grid + n_columns + 1, velocity)
+
+    '''
+    if pos_grid%n_columns != 0:
+        check_edge(G, d, node, nodes_per_square, pos_grid - 1, velocity)
+    if pos_grid%n_columns != n_columns-1:
+        check_edge(G, d, node, nodes_per_square, pos_grid + 1, velocity)
+    if pos_grid >= n_columns:
+        check_edge(G, d, node, nodes_per_square, pos_grid - n_columns, velocity)
+        if (pos_grid - n_columns)%n_columns != 0:
+            check_edge(G, d, node, nodes_per_square, pos_grid - n_columns - 1, velocity)
+        if (pos_grid - n_columns)%n_columns != n_columns-1:
+            check_edge(G, d, node, nodes_per_square, pos_grid - n_columns + 1, velocity)
+    if pos_grid < len(nodes_per_square) - n_columns:
+        check_edge(G, d, node, nodes_per_square, pos_grid + n_columns, velocity)
+        if (pos_grid + n_columns)%n_columns != 0:
+            check_edge(G, d, node, nodes_per_square, pos_grid + n_columns - 1, velocity)
+        if (pos_grid + n_columns)%n_columns != n_columns-1:
+            check_edge(G, d, node, nodes_per_square, pos_grid + n_columns + 1, velocity)
+    '''
 
 def get_edges(G, d):
     bbox_coords = bbox (G)
@@ -210,7 +234,7 @@ def route(addresses, G, d, info):
     walk_v = 4000 # meters/hour
     if coords is None: print("Adreça no trobada")
     else:
-        # Adding 2 nodes to the graph (taking d into account)
+        # We add the origin and the destination positions to the graph as two new nodes (taking d into account)
         coord_origen, coord_desti = coords
         G.add_node('o', pos=coord_origen)
         G.add_node('d', pos=coord_desti)
@@ -220,7 +244,7 @@ def route(addresses, G, d, info):
 
         path = nx.shortest_path(G, source='o', target='d', weight='time')
 
-        ##esborrar nodes del graf
+        # We remove them for further calculations
         G.remove_node('o')
         G.remove_node('d')
 
