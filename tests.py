@@ -1,7 +1,8 @@
-from data_v2 import *
+from data import *
 
-d = 1000
+d = 500
 G, bicing, info = build_graph(d)
+print (bicing)
 
 #No creus que podríem evitar fer la bbox cada cop?
 #En plan podríem fer la funció get_nodes fora de build graph (així només la faíem un cop)
@@ -13,7 +14,8 @@ image.save('map.png')
 #print(number_of_nodes(G))
 #print(number_of_edges(G))
 #print(number_of_connected_components(G))
-plot_route('Passeig de Gràcia 92, La Rambla 51', G, d, info)
+image2 = plot_route('Rambla del Raval 13, Provença 501', G, d, info)
+image2.save('route.png')
 
 '''
 print("xmin, ymin, xmax, ymax in coordinates: ", bbox(G))
