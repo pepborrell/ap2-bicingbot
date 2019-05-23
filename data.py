@@ -106,7 +106,7 @@ Changes the
 '''
 def check_edge (G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
-        distance = haversine(node[1]['pos'],n_node[1]['pos'])
+        distance = haversine(node[1]['pos'],n_node[1]['pos'], unit='m')
         if (distance < d and n_node != node): #<=?
             G.add_edge(node[0], n_node[0], time=distance/velocity)
 
