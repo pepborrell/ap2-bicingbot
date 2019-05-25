@@ -21,18 +21,6 @@ def get_nodes():
     return G, bicing
 
 '''
-To create the edges regarding the maximum distance allowed d, we'll create out of our map
-(using its corresponding bounding box) a grid made of little squares of size d^2.
-The origin will correspond to the left-down side of the bounding box with increasing x's to the right
-and increasing y's above.
-Likewise, the little squares' location within the grid will be expressed like a Matrix.
-The leftest and highest square will have the index 0.
-
-Therefore, finding the neighbours of a node that satisfy the condition of proximity will have
-a linear cost instead of a quadratic one.
-'''
-
-'''
 Returns the latitude of a node.
 '''
 def lat (node):
@@ -43,6 +31,17 @@ Returns the longitude of a node.
 '''
 def lon (node):
     return node[1]['pos'][1]
+
+'''
+To create the edges regarding the maximum distance allowed d, we'll create out of our map
+(using its corresponding bounding box) a grid made of little squares of size d^2.
+The little squares' location within the grid will be expressed with an identification number starting
+from the leftest and highest whose number will be set to 0. Increasing identify numbers will be set
+firstly through columns and then through rows.
+
+Therefore, finding the neighbours of a node that satisfy the condition of proximity will have
+a linear cost instead of a quadratic one.
+'''
 
 '''
 Returns the dimensions of the corresponding bounding box of G and the minimum longitude and latitude.
@@ -102,7 +101,7 @@ def grid (G, d, X):
     return nodes_per_square, n_columns
 
 '''
-Changes the
+Checks wether the possible edges from node obey having a distance < d. 
 '''
 def check_edge (G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
@@ -111,27 +110,48 @@ def check_edge (G, d, node, nodes_per_square, n_square, velocity):
             G.add_edge(node[0], n_node[0], time=distance/velocity)
 
 
+'''
+Connects the node with the nodes of the minimum necessary squares around it.
+That is: checking the same node square and the ones located below, below-right, right, above-right of it
+(whenever they exist in the grid).
+'''
 def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
     pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
     check_edge(G, d, node, nodes_per_square, pos_grid, velocity)
 
-    if pos_grid%n_columns != 0:
-        check_edge(G, d, node, nodes_per_square, pos_grid - 1, velocity)
     if pos_grid%n_columns != n_columns-1:
         check_edge(G, d, node, nodes_per_square, pos_grid + 1, velocity)
     if pos_grid >= n_columns:
         check_edge(G, d, node, nodes_per_square, pos_grid - n_columns, velocity)
-        if (pos_grid - n_columns)%n_columns != 0:
-            check_edge(G, d, node, nodes_per_square, pos_grid - n_columns - 1, velocity)
         if (pos_grid - n_columns)%n_columns != n_columns-1:
             check_edge(G, d, node, nodes_per_square, pos_grid - n_columns + 1, velocity)
+    if pos_grid < len(nodes_per_square) - n_columns:
+        if (pos_grid + n_columns)%n_columns != n_columns-1:
+            check_edge(G, d, node, nodes_per_square, pos_grid + n_columns + 1, velocity)
+
+'''
+Connects the node with all possible nodes within its own square and the resting eight around it.(Whenever they exist in the grid).
+Used when adding a new node (origin or destiny from route function definde below).
+'''
+def neighbours_od (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
+    pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
+    check_edge(G, d, node, nodes_per_square, pos_grid, velocity)
+
+    neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity)
+
+    if pos_grid%n_columns != 0:
+        check_edge(G, d, node, nodes_per_square, pos_grid - 1, velocity)
+    if pos_grid >= n_columns and (pos_grid - n_columns)%n_columns != 0:
+        check_edge(G, d, node, nodes_per_square, pos_grid - n_columns - 1, velocity)
     if pos_grid < len(nodes_per_square) - n_columns:
         check_edge(G, d, node, nodes_per_square, pos_grid + n_columns, velocity)
         if (pos_grid + n_columns)%n_columns != 0:
             check_edge(G, d, node, nodes_per_square, pos_grid + n_columns - 1, velocity)
-        if (pos_grid + n_columns)%n_columns != n_columns-1:
-            check_edge(G, d, node, nodes_per_square, pos_grid + n_columns + 1, velocity)
 
+'''
+Connects the nodes of the graph adding edges which obey the condition (distance < d)
+and own a weight value that represents the time needed to go through.
+'''
 def get_edges(G, d):
     bbox_coords = bbox (G)
     bike_v = 1000 # meters/hour
@@ -140,20 +160,31 @@ def get_edges(G, d):
         neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, bike_v)
     return nodes_per_square, bbox_coords, n_columns
 
+'''
+Builds the graph taking into account the specified conditions.
+'''
 def build_graph(d):
     G, bicing = get_nodes()
     info = get_edges(G, d)
     return G, bicing, info
 
+'''
+Returns the number of nodes.
+'''
 def number_of_nodes(G):
     return G.number_of_nodes()
 
+'''
+Returns the number of edges.
+'''
 def number_of_edges(G):
     return G.number_of_edges()
 
+'''
+Returns the number of connected components.
+'''
 def number_of_connected_components(G):
     return nx.number_connected_components(G)
-
 
 '''
 Plots the graph as a map, using the coordinates of the nodes.
@@ -180,6 +211,9 @@ def plot_graph(G):
     image = city_map.render()
     return image
 
+'''
+Converts addresses to its corresponding coordinates (latitude, longitude).
+'''
 def addressesTOcoordinates(addresses):
     '''
     Returns the two coordinates of two addresses of Barcelona
@@ -213,12 +247,17 @@ taking into account the corresponding velocities when walking or by bike.
 '''
 def route(G, d, info):
     walk_v = 4000 # meters/hour
-    neighbours (G, d, ('o', G.nodes['o']), info[0], info[1], info[2], walk_v)
-    neighbours (G, d, ('d', G.nodes['d']), info[0], info[1], info[2], walk_v)
+    neighbours_od (G, d, ('o', G.nodes['o']), info[0], info[1], info[2], walk_v)
+    neighbours_od (G, d, ('d', G.nodes['d']), info[0], info[1], info[2], walk_v)
 
     path = nx.shortest_path(G, source='o', target='d', weight='time')
     return path
 
+'''
+Plots the route that takes the minimum time to go through using the coordinates of the "origin" and "destiny" nodes.
+It considers the different velocities of walking or riding a bike to compute the quickest way.
+Takes two addresses and returns the image with the route ploted.
+'''
 def plot_route(addresses, G, d, info):
     coords = addressesTOcoordinates(addresses)
     if coords is None: print("Adreça no trobada")
