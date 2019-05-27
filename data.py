@@ -5,6 +5,10 @@ from geopy.geocoders import Nominatim
 import networkx as nx
 from staticmap import StaticMap, CircleMarker, Line
 
+import itertools as it
+from IPython.display import display
+from PIL import Image
+
 '''
 Downloads the data from the internet and places the stations in a NetworkX Graph.
 Returns the graph, with the index and position in the node's own data and the
@@ -12,13 +16,17 @@ DataFrame containing all the downloaded data.
 The position data is a tuple of the form (latitude, longitude)
 '''
 def get_nodes():
-    url = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_information'
-    bicing = DataFrame.from_records(pd.read_json(url)['data']['stations'], index='station_id')
+    url_info = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_information'
+    url_status = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_status'
+
+    stations = DataFrame.from_records(pd.read_json(url_info)['data']['stations'], index='station_id')
+    bikes = DataFrame.from_records(pd.read_json(url_status)['data']['stations'], index='station_id')
+
     G = nx.Graph()
-    for st in bicing.itertuples():
+    for st in stations.itertuples():
         position = (st.lat, st.lon)
         G.add_node(st.Index, pos=position)
-    return G, bicing
+    return G, stations
 
 '''
 Returns the latitude of a node.
@@ -164,9 +172,9 @@ def get_edges(G, d):
 Builds the graph taking into account the specified conditions.
 '''
 def build_graph(d):
-    G, bicing = get_nodes()
+    G, stations = get_nodes()
     info = get_edges(G, d)
-    return G, bicing, info
+    return G, stations, info
 
 '''
 Returns the number of nodes.

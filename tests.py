@@ -18,5 +18,4 @@ image2.save('route.png')
 
 '''
 print("xmin, ymin, xmax, ymax in coordinates: ", bbox(G))
-
 '''
