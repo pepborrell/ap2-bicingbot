@@ -5,7 +5,3 @@ haversine
 geopy
 staticmap
 python-telegram-bot
-
-intertools
-IPython.display
-PIL
