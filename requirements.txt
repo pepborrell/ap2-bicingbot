@@ -4,4 +4,4 @@ networkx
 haversine
 geopy
 staticmap
-python-telegram-bot
+python-telegram-bot==10
