@@ -5,10 +5,6 @@ from geopy.geocoders import Nominatim
 import networkx as nx
 from staticmap import StaticMap, CircleMarker, Line
 
-import itertools as it
-from IPython.display import display
-from PIL import Image
-
 '''
 Downloads the data from the internet and places the stations in a NetworkX Graph.
 Returns the graph, with the index and position in the node's own data and the
@@ -290,3 +286,116 @@ def plot_route(addresses, G, d, info):
         G.remove_node('d')
 
         return plot_graph(H)
+    
+
+#____________________________________________________
+
+def distribute(geomG, d, stations, requiredBikes, requiredDocks):
+    url_status = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_status'
+    bikes = DataFrame.from_records(pd.read_json(url_status)['data']['stations'], index='station_id')
+    
+    nbikes = 'num_bikes_available'
+    ndocks = 'num_docks_available'
+    bikes = bikes[[nbikes, ndocks]] # We only select the interesting columns
+
+    TotalBikes = bikes[nbikes].sum()
+    TotalDocks = bikes[ndocks].sum()
+
+    '''
+    print("Total number of bikes:", TotalBikes)
+    print("Total number of docks:", TotalDocks)
+
+    print(bikes.loc[(bikes[nbikes] < requiredBikes) | (bikes[ndocks] < requiredDocks)])
+    '''
+
+    '''
+    Atributes to the graph
+    '''
+    G = nx.DiGraph()
+    G.add_node('TOP') # The green node
+    demand = 0
+
+    for st in bikes.itertuples():
+        idx = st.Index
+        stridx = str(idx)
+        
+        # The blue (s), black (g) and red (t) nodes of the graph
+        s_idx, g_idx, t_idx = 's'+stridx, 'g'+stridx, 't'+stridx
+        G.add_node(g_idx)
+        G.add_node(s_idx)
+        G.add_node(t_idx)
+        
+        b, d = st.num_bikes_available, st.num_docks_available
+        req_bikes = max(0, requiredBikes - b)
+        req_docks = max(0, requiredDocks - d)
+        
+        # Some of the following edges require attributes
+        G.add_edge('TOP', s_idx, )
+        G.add_edge(t_idx, 'TOP', )
+        G.add_edge(s_idx, g_idx, capacity=max(b - requiredBikes, 0))
+        G.add_edge(g_idx, t_idx, capacity=max(d - requiredDocks, 0))
+        
+        if req_bikes > 0:
+            demand += req_bikes
+            G.nodes[t_idx]['demand'] = req_bikes
+            
+        elif req_docks > 0:
+            demand -= req_docks
+            G.nodes[s_idx]['demand'] = - req_docks
+
+    G.nodes['TOP']['demand'] = - demand
+
+    for idx1 in G.nodes():
+        if idx1[0] == 'g':
+            for idx2 in geomG[int(idx1[1:])]:
+                coord1 = (stations.at[int(idx1[1:]), 'lat'], stations.at[int(idx1[1:]), 'lon'])
+                coord2 = (stations.at[idx2, 'lat'], stations.at[idx2, 'lon'])
+                dist = haversine(coord1, coord2, unit='m')
+
+                if (dist <= d):
+                    # The edges must be bidirectional: g_idx1 <--> g_idx2
+                    G.add_edge(idx1, 'g'+str(idx2), weight=int(dist))
+                    G.add_edge('g'+str(idx2), idx1, weight=int(dist))
+
+    #print('Graph with', G.number_of_nodes(), "nodes and", G.number_of_edges(), "edges.")
+
+    '''
+    Min cost flow
+    '''
+    err = False
+    try:
+        flowCost, flowDict = nx.network_simplex(G ,demand='demand', capacity='capacity', weight='weight')
+
+    except nx.NetworkXUnfeasible:
+        err = True
+        print("No solution could be found")
+
+    except:
+        err = True
+        print("***************************************")
+        print("*** Fatal error: Incorrect graph model ")
+        print("***************************************")
+
+    if not err:
+        print("The total cost of transferring bikes is", flowCost/1000, "km.")
+
+        # We update the status of the stations according to the calculated transportation of bicycles
+        for src in flowDict:
+            if src[0] != 'g': continue
+            idx_src = int(src[1:])
+            for dst, b in flowDict[src].items():
+                if dst[0] == 'g' and b > 0:
+                    idx_dst = int(dst[1:])
+                    print(idx_src, "->", idx_dst, " ", b, "bikes, distance", G.edges[src, dst]['weight'])
+                    bikes.at[idx_src, nbikes] -= b
+                    bikes.at[idx_dst, nbikes] += b 
+                    bikes.at[idx_src, ndocks] += b 
+                    bikes.at[idx_dst, ndocks] -= b
+
+    TotalBikes = bikes[nbikes].sum()
+    TotalDocks = bikes[ndocks].sum()
+    #print("Total number of bikes:", TotalBikes)
+    #print("Total number of docks:", TotalDocks)
+    print(bikes.loc[(bikes[nbikes] < requiredBikes) | (bikes[ndocks] < requiredDocks)])
+
+
