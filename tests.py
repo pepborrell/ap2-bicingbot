@@ -1,7 +1,7 @@
 from data import *
 
 d = 1000
-G, bicing, info = build_graph(d)
+G, stations, info = build_graph(d)
 
 #No creus que podríem evitar fer la bbox cada cop?
 #En plan podríem fer la funció get_nodes fora de build graph (així només la faíem un cop)
@@ -9,6 +9,8 @@ G, bicing, info = build_graph(d)
 
 image = plot_graph(G)
 image.save('map.png')
+
+distribute(G, d, stations, 1, 0)
 
 print(number_of_nodes(G))
 print(number_of_edges(G))

@@ -13,10 +13,7 @@ The position data is a tuple of the form (latitude, longitude)
 '''
 def get_nodes():
     url_info = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_information'
-    url_status = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_status'
-
     stations = DataFrame.from_records(pd.read_json(url_info)['data']['stations'], index='station_id')
-    bikes = DataFrame.from_records(pd.read_json(url_status)['data']['stations'], index='station_id')
 
     G = nx.Graph()
     for st in stations.itertuples():
@@ -289,24 +286,20 @@ def plot_route(addresses, G, d, info):
     
 
 #____________________________________________________
-
+'''
+The function distribute indicates the cost of
+'''
 def distribute(geomG, d, stations, requiredBikes, requiredDocks):
     url_status = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_status'
     bikes = DataFrame.from_records(pd.read_json(url_status)['data']['stations'], index='station_id')
     
     nbikes = 'num_bikes_available'
     ndocks = 'num_docks_available'
-    bikes = bikes[[nbikes, ndocks]] # We only select the interesting columns
+    status = 'status'
+    bikes = bikes[[nbikes, ndocks, status]] # We only select the interesting columns
 
     TotalBikes = bikes[nbikes].sum()
     TotalDocks = bikes[ndocks].sum()
-
-    '''
-    print("Total number of bikes:", TotalBikes)
-    print("Total number of docks:", TotalDocks)
-
-    print(bikes.loc[(bikes[nbikes] < requiredBikes) | (bikes[ndocks] < requiredDocks)])
-    '''
 
     '''
     Atributes to the graph
@@ -330,8 +323,8 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
         req_docks = max(0, requiredDocks - d)
         
         # Some of the following edges require attributes
-        G.add_edge('TOP', s_idx, )
-        G.add_edge(t_idx, 'TOP', )
+        G.add_edge('TOP', s_idx)
+        G.add_edge(t_idx, 'TOP')
         G.add_edge(s_idx, g_idx, capacity=max(b - requiredBikes, 0))
         G.add_edge(g_idx, t_idx, capacity=max(d - requiredDocks, 0))
         
@@ -347,15 +340,16 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
 
     for idx1 in G.nodes():
         if idx1[0] == 'g':
-            for idx2 in geomG[int(idx1[1:])]:
-                coord1 = (stations.at[int(idx1[1:]), 'lat'], stations.at[int(idx1[1:]), 'lon'])
-                coord2 = (stations.at[idx2, 'lat'], stations.at[idx2, 'lon'])
-                dist = haversine(coord1, coord2, unit='m')
+            if bikes.at[int(idx1[1:]), 'status'] == "IN_SERVICE":
+                for idx2 in geomG[int(idx1[1:])]:
+                    coord1 = (stations.at[int(idx1[1:]), 'lat'], stations.at[int(idx1[1:]), 'lon'])
+                    coord2 = (stations.at[idx2, 'lat'], stations.at[idx2, 'lon'])
+                    dist = haversine(coord1, coord2, unit='m')
 
-                if (dist <= d):
-                    # The edges must be bidirectional: g_idx1 <--> g_idx2
-                    G.add_edge(idx1, 'g'+str(idx2), weight=int(dist))
-                    G.add_edge('g'+str(idx2), idx1, weight=int(dist))
+                    if (dist <= d):
+                        # The edges must be bidirectional: g_idx1 <--> g_idx2
+                        G.add_edge(idx1, 'g'+str(idx2), weight=int(dist))
+                        G.add_edge('g'+str(idx2), idx1, weight=int(dist))
 
     #print('Graph with', G.number_of_nodes(), "nodes and", G.number_of_edges(), "edges.")
 
