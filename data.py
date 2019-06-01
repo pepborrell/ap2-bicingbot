@@ -94,6 +94,11 @@ def grid (G, d, X):
     width = haversine ((xmin, ymin), (xmax, ymin), unit='m')
     height = haversine ((xmin, ymin), (xmin, ymax), unit='m')
 
+    # To compensate for numerical issues
+    epsilon = 10
+    width += 10
+    height += 10
+
     n_columns = int(width // d + 1)
     n_rows = int(height // d + 1)
 
@@ -104,7 +109,7 @@ def grid (G, d, X):
     return nodes_per_square, n_columns
 
 '''
-Checks wether the possible edges from node obey having a distance < d. 
+Checks wether the possible edges from node obey having a distance < d.
 '''
 def check_edge (G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
@@ -134,7 +139,8 @@ def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
 
 '''
 Connects the node with all possible nodes within its own square and the resting eight around it.(Whenever they exist in the grid).
-Used when adding a new node (origin or destiny from route function definde below).
+Used when adding a new node (origin or destiny from route function defined below).
+'''
 '''
 def neighbours_od (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
     pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
@@ -150,6 +156,11 @@ def neighbours_od (G, d, node, nodes_per_square, bbox_coords, n_columns, velocit
         check_edge(G, d, node, nodes_per_square, pos_grid + n_columns, velocity)
         if (pos_grid + n_columns)%n_columns != 0:
             check_edge(G, d, node, nodes_per_square, pos_grid + n_columns - 1, velocity)
+'''
+def neighbours_od(G, node, velocity):
+    for onode in list(G.nodes(data=True)):
+        distance = haversine(G.nodes[1]['pos'],onode[1]['pos'], unit='m')
+        G.add_edge(node[0], onode[0], time=distance/velocity)
 
 '''
 Connects the nodes of the graph adding edges which obey the condition (distance < d)
@@ -200,7 +211,7 @@ def plot_graph(G):
         if node[0] == 'o' or node[0] == 'd':
             marker = CircleMarker(node[1]['pos'][::-1], 'green', 4)
         else:
-            marker = CircleMarker(node[1]['pos'][::-1], 'red', 4)
+            marker = CircleMarker(node[1]['pos'][::-1], 'red', 2)
         city_map.add_marker(marker)
 
     # Plotting edges
@@ -250,8 +261,8 @@ taking into account the corresponding velocities when walking or by bike.
 '''
 def route(G, d, info):
     walk_v = 4000 # meters/hour (4 km/h)
-    neighbours_od (G, d, ('o', G.nodes['o']), info[0], info[1], info[2], walk_v)
-    neighbours_od (G, d, ('d', G.nodes['d']), info[0], info[1], info[2], walk_v)
+    neighbours_od (G, ('o', G.nodes['o']), walk_v)
+    neighbours_od (G, ('d', G.nodes['d']), walk_v)
 
     path = nx.shortest_path(G, source='o', target='d', weight='time')
     return path
@@ -284,19 +295,18 @@ def plot_route(addresses, G, d, info):
         G.remove_node('d')
 
         return plot_graph(H)
-    
 
-#____________________________________________________
+
 '''
 The function distribute indicates the cost of redistributing bikes among the graph so that
 each station satisfies the minimum number of bikes and docks required.
 If there's a solution, the movements needed and the kilometers they take are indicated; whereas
 if not, this message is displayed: "No solution could be found".
 '''
-def distribute(geomG, d, stations, requiredBikes, requiredDocks):
+def distribute(geomG, d, requiredBikes, requiredDocks):
     url_status = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_status'
     bikes = DataFrame.from_records(pd.read_json(url_status)['data']['stations'], index='station_id')
-    
+
     nbikes = 'num_bikes_available'
     ndocks = 'num_docks_available'
     status = 'status'
@@ -314,28 +324,28 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
         if st.status != 'IN_SERVICE':
             continue
         stridx = str(idx)
-        
+
         # The blue (s), black (g) and red (t) nodes of the graph
         s_idx, g_idx, t_idx = 's'+stridx, 'g'+stridx, 't'+stridx
         G.add_node(g_idx)
         G.add_node(s_idx)
         G.add_node(t_idx)
-        
+
         b, d = st.num_bikes_available, st.num_docks_available
         req_bikes = max(0, requiredBikes - b)
         req_docks = max(0, requiredDocks - d)
-        
+
         # Connects each trio of nodes with the TOP one
         G.add_edge('TOP', s_idx)
         G.add_edge(t_idx, 'TOP')
         G.add_edge(s_idx, g_idx, capacity=max(b - requiredBikes, 0))
         G.add_edge(g_idx, t_idx, capacity=max(d - requiredDocks, 0))
-        
+
         # Defines demands: positive for bikes demand and negative for docks demand
         if req_bikes > 0:
             demand += req_bikes
             G.nodes[t_idx]['demand'] = req_bikes
-            
+
         elif req_docks > 0:
             demand -= req_docks
             G.nodes[s_idx]['demand'] = - req_docks
@@ -350,7 +360,7 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
                 for idx2 in geomG[int(idx1[1:])]:
                     v_bike = 10000 # meters/hour (10 km/h)
                     distance = geomG[int(idx1[1:])][idx2]['time']*v_bike # in meters
-                    
+
                     # Now, the weight of the edges is the distance required (in m), since it is the attribute we want to minimize
                     G.add_edge(idx1, 'g'+str(idx2), weight=int(distance))
                     G.add_edge('g'+str(idx2), idx1, weight=int(distance))
@@ -373,7 +383,17 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
         print("***************************************")
 
     if not err:
-        print("The total cost of transferring bikes is", flowCost/1000, "km.")
+        mx = 0
+        for src in flowDict:
+            for snk in flowDict[src]:
+                if mx < flowDict[src][snk]:
+                    mx = flowDict[src][snk]
+                    mx_nodes = [src, snk]
+
+        print(mx, mx_nodes)
+        str_out = 'The total cost of transferring bikes is ' + str(flowCost/1000) + ' km.\n'
+        str_out += 'The edge wih the highest cost is ' + str(mx_nodes) + '. Cost: ' + str(mx/1000) + ' km.\n'
+        return str_out
 
         # We update the status of the stations according to the calculated transportation of bicycles
         for src in flowDict:
@@ -384,11 +404,9 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
                     idx_dst = int(dst[1:])
                     print(idx_src, "->", idx_dst, " ", b, "bikes, distance", G.edges[src, dst]['weight'], "m")
                     bikes.at[idx_src, nbikes] -= b
-                    bikes.at[idx_dst, nbikes] += b 
-                    bikes.at[idx_src, ndocks] += b 
+                    bikes.at[idx_dst, nbikes] += b
+                    bikes.at[idx_src, ndocks] += b
                     bikes.at[idx_dst, ndocks] -= b
 
     print("The following stations aren't in service so they don't have to satisfy the requirements:")
     print(bikes.loc[(bikes[nbikes] < requiredBikes) | (bikes[ndocks] < requiredDocks)])
-
-

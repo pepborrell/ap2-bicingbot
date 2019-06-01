@@ -30,7 +30,7 @@ def start(bot, update, user_data):
     try:
         d = 1000
         user_data['d'] = d
-        user_data['G'], user_data['bicing'], user_data['info'] = dt.build_graph(d)
+        user_data['G'], bicing, user_data['info'] = dt.build_graph(d)
     except Exception as e:
         print(e)
         bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
@@ -122,7 +122,11 @@ def route(bot, update, user_data):
 
 def distribute(bot, update, user_data, args):
     try:
-        dt.distribute(user_data['G'], user_data['d'], user_data['bicing'], args[0], args[1])
+        outp = dt.distribute(user_data['G'], user_data['d'], int(args[0]), int(args[1]))
+        bot.send_message(chat_id=update.message.chat_id, text=outp)
+    except nx.NetworkXUnfeasible as e:
+        print(e)
+        bot.send_message(chat_id=update.message.chat_id, text='No solution could be found with the given parameters')
     except Exception as e:
         print(e)
         bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
