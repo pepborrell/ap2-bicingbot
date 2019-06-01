@@ -33,7 +33,7 @@ def start(bot, update, user_data):
         user_data['G'], bicing, user_data['info'] = dt.build_graph(d)
     except Exception as e:
         print(e)
-        bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
+        bot.send_message(chat_id=update.message.chat_id, text='An error occurred. Please try again.')
 
 
 def help(bot, update):
@@ -62,7 +62,11 @@ def authors(bot, update):
 
 def graph(bot, update, user_data, args):
     try:
-        d = float(args[0])
+        n_args = len(args)
+        if n_args:
+            d = float(args[0])
+        else:
+            d = 1000
         user_data['d'] = d
         user_data['G'], bicing, user_data['info'] = dt.build_graph(d)
     except Exception as e:
@@ -76,7 +80,7 @@ def nodes(bot, update, user_data):
         bot.send_message(chat_id=update.message.chat_id, text='There are currently %d working Bicing stations' % (nnodes))
     except Exception as e:
         print(e)
-        bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
+        bot.send_message(chat_id=update.message.chat_id, text='An error occurred. Please try again.')
 
 def edges(bot, update, user_data):
     G = user_data['G']
@@ -85,7 +89,7 @@ def edges(bot, update, user_data):
         bot.send_message(chat_id=update.message.chat_id, text='There are currently %d edges in your graph' % (nedges))
     except Exception as e:
         print(e)
-        bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
+        bot.send_message(chat_id=update.message.chat_id, text='An error occurred. Please try again.')
 
 def components(bot, update, user_data):
     G = user_data['G']
@@ -94,7 +98,7 @@ def components(bot, update, user_data):
         bot.send_message(chat_id=update.message.chat_id, text='There are currently %d connected components in your graph' % (nccomp))
     except Exception as e:
         print(e)
-        bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
+        bot.send_message(chat_id=update.message.chat_id, text='An error occurred. Please try again.')
 
 def plotgraph(bot, update, user_data):
     filename = str(update.message.chat.username) + '.png'
@@ -106,7 +110,7 @@ def plotgraph(bot, update, user_data):
         os.remove(filename)
     except Exception as e:
         print(e)
-        bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
+        bot.send_message(chat_id=update.message.chat_id, text='An error occurred. Please try again.')
 
 def route(bot, update, user_data):
     miss_orig = update.message.text[7:]
@@ -118,18 +122,18 @@ def route(bot, update, user_data):
         os.remove(filename)
     except Exception as e:
         print(e)
-        bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
+        bot.send_message(chat_id=update.message.chat_id, text='An error occurred. Please try again.')
 
 def distribute(bot, update, user_data, args):
-    try:
-        outp = dt.distribute(user_data['G'], user_data['d'], int(args[0]), int(args[1]))
-        bot.send_message(chat_id=update.message.chat_id, text=outp)
-    except nx.NetworkXUnfeasible as e:
-        print(e)
-        bot.send_message(chat_id=update.message.chat_id, text='No solution could be found with the given parameters')
-    except Exception as e:
-        print(e)
-        bot.send_message(chat_id=update.message.chat_id, text='An error occured. Please try again.')
+    if len(args) != 2:
+        bot.send_message(chat_id=update.message.chat_id, text='Please give me only two arguments!')
+    else:
+        try:
+            outp = dt.distribute(user_data['G'], user_data['d'], int(args[0]), int(args[1]))
+            bot.send_message(chat_id=update.message.chat_id, text=outp)
+        except Exception as e:
+            print(e)
+            bot.send_message(chat_id=update.message.chat_id, text='No solution was found or an error occurred. Please try again.')
 
 
 # assigns functions to their commands

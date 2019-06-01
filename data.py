@@ -211,7 +211,7 @@ def plot_graph(G):
         if node[0] == 'o' or node[0] == 'd':
             marker = CircleMarker(node[1]['pos'][::-1], 'green', 4)
         else:
-            marker = CircleMarker(node[1]['pos'][::-1], 'red', 2)
+            marker = CircleMarker(node[1]['pos'][::-1], 'red', 3)
         city_map.add_marker(marker)
 
     # Plotting edges
@@ -375,6 +375,7 @@ def distribute(geomG, d, requiredBikes, requiredDocks):
     except nx.NetworkXUnfeasible:
         err = True
         print("No solution could be found")
+        raise Exception(nx.NetworkXUnfeasible)
 
     except:
         err = True
@@ -384,15 +385,18 @@ def distribute(geomG, d, requiredBikes, requiredDocks):
 
     if not err:
         mx = 0
+        mx_nodes = []
         for src in flowDict:
             for snk in flowDict[src]:
-                if mx < flowDict[src][snk]:
+                if mx < abs(flowDict[src][snk]):
                     mx = flowDict[src][snk]
                     mx_nodes = [src, snk]
 
-        print(mx, mx_nodes)
         str_out = 'The total cost of transferring bikes is ' + str(flowCost/1000) + ' km.\n'
-        str_out += 'The edge wih the highest cost is ' + str(mx_nodes) + '. Cost: ' + str(mx/1000) + ' km.\n'
+        if mx > 0:
+            str_out += 'The edge wih the highest cost is ' + str(mx_nodes) + '. Cost: ' + str(mx/1000) + ' km.\n'
+        else:
+            str_out += 'There is no edge with cost greater than 0.\n'
         return str_out
 
         # We update the status of the stations according to the calculated transportation of bicycles
@@ -407,6 +411,3 @@ def distribute(geomG, d, requiredBikes, requiredDocks):
                     bikes.at[idx_dst, nbikes] += b
                     bikes.at[idx_src, ndocks] += b
                     bikes.at[idx_dst, ndocks] -= b
-
-    print("The following stations aren't in service so they don't have to satisfy the requirements:")
-    print(bikes.loc[(bikes[nbikes] < requiredBikes) | (bikes[ndocks] < requiredDocks)])
