@@ -1,6 +1,6 @@
 from data import *
 
-d = 1000
+d = 600
 G, stations, info = build_graph(d)
 
 #No creus que podríem evitar fer la bbox cada cop?
@@ -10,11 +10,12 @@ G, stations, info = build_graph(d)
 image = plot_graph(G)
 image.save('map.png')
 
-distribute(G, d, stations, 1, 0)
+distribute(G, d, stations, 3, 2)
 
-print(number_of_nodes(G))
-print(number_of_edges(G))
+#print(number_of_nodes(G))
+#print(number_of_edges(G))
 #print(number_of_connected_components(G))
+
 image2 = plot_route('Rambla del Raval 13, Provença 501', G, d, info)
 image2.save('route.png')
 

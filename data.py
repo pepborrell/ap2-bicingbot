@@ -5,6 +5,9 @@ from geopy.geocoders import Nominatim
 import networkx as nx
 from staticmap import StaticMap, CircleMarker, Line
 
+
+import itertools as it
+
 '''
 Downloads the data from the internet and places the stations in a NetworkX Graph.
 Returns the graph, with the index and position in the node's own data and the
@@ -90,7 +93,6 @@ def grid (G, d, X):
     xmin, ymin, xmax, ymax = X
     width = haversine ((xmin, ymin), (xmax, ymin), unit='m')
     height = haversine ((xmin, ymin), (xmin, ymax), unit='m')
-    print ('width and height of bbox in meters: ', width, height)
 
     n_columns = int(width // d + 1)
     n_rows = int(height // d + 1)
@@ -155,7 +157,7 @@ and own a weight value that represents the time needed to go through.
 '''
 def get_edges(G, d):
     bbox_coords = bbox (G)
-    bike_v = 1000 # meters/hour
+    bike_v = 10000 # meters/hour (10 km/h)
     nodes_per_square, n_columns = grid (G, d, bbox_coords)
     for node in list(G.nodes(data=True)):
         neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, bike_v)
@@ -247,7 +249,7 @@ Returns the shortest path in time between two given addresses
 taking into account the corresponding velocities when walking or by bike.
 '''
 def route(G, d, info):
-    walk_v = 4000 # meters/hour
+    walk_v = 4000 # meters/hour (4 km/h)
     neighbours_od (G, d, ('o', G.nodes['o']), info[0], info[1], info[2], walk_v)
     neighbours_od (G, d, ('d', G.nodes['d']), info[0], info[1], info[2], walk_v)
 
@@ -275,7 +277,6 @@ def plot_route(addresses, G, d, info):
         H = nx.path_graph(path)
 
         for x in list(H.nodes()):
-            print (G.nodes[x]['pos'])
             H.nodes[x]['pos'] = G.nodes[x]['pos']
 
         # We remove them for further calculations
@@ -287,7 +288,10 @@ def plot_route(addresses, G, d, info):
 
 #____________________________________________________
 '''
-The function distribute indicates the cost of
+The function distribute indicates the cost of redistributing bikes among the graph so that
+each station satisfies the minimum number of bikes and docks required.
+If there's a solution, the movements needed and the kilometers they take are indicated; whereas
+if not, this message is displayed: "No solution could be found".
 '''
 def distribute(geomG, d, stations, requiredBikes, requiredDocks):
     url_status = 'https://api.bsmsa.eu/ext/api/bsm/gbfs/v2/en/station_status'
@@ -298,11 +302,8 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
     status = 'status'
     bikes = bikes[[nbikes, ndocks, status]] # We only select the interesting columns
 
-    TotalBikes = bikes[nbikes].sum()
-    TotalDocks = bikes[ndocks].sum()
-
     '''
-    Atributes to the graph
+    Attributes of the graph
     '''
     G = nx.DiGraph()
     G.add_node('TOP') # The green node
@@ -310,6 +311,8 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
 
     for st in bikes.itertuples():
         idx = st.Index
+        if st.status != 'IN_SERVICE':
+            continue
         stridx = str(idx)
         
         # The blue (s), black (g) and red (t) nodes of the graph
@@ -322,12 +325,13 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
         req_bikes = max(0, requiredBikes - b)
         req_docks = max(0, requiredDocks - d)
         
-        # Some of the following edges require attributes
+        # Connects each trio of nodes with the TOP one
         G.add_edge('TOP', s_idx)
         G.add_edge(t_idx, 'TOP')
         G.add_edge(s_idx, g_idx, capacity=max(b - requiredBikes, 0))
         G.add_edge(g_idx, t_idx, capacity=max(d - requiredDocks, 0))
         
+        # Defines demands: positive for bikes demand and negative for docks demand
         if req_bikes > 0:
             demand += req_bikes
             G.nodes[t_idx]['demand'] = req_bikes
@@ -336,22 +340,20 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
             demand -= req_docks
             G.nodes[s_idx]['demand'] = - req_docks
 
+    # Defines demand of the TOP node to compensate the graph one
     G.nodes['TOP']['demand'] = - demand
 
+    # Connects the graph G with the Geometric graph geomG
     for idx1 in G.nodes():
         if idx1[0] == 'g':
-            if bikes.at[int(idx1[1:]), 'status'] == "IN_SERVICE":
+            if bikes.at[int(idx1[1:]), 'status'] == "IN_SERVICE": # Considers only the stations that are in service
                 for idx2 in geomG[int(idx1[1:])]:
-                    coord1 = (stations.at[int(idx1[1:]), 'lat'], stations.at[int(idx1[1:]), 'lon'])
-                    coord2 = (stations.at[idx2, 'lat'], stations.at[idx2, 'lon'])
-                    dist = haversine(coord1, coord2, unit='m')
-
-                    if (dist <= d):
-                        # The edges must be bidirectional: g_idx1 <--> g_idx2
-                        G.add_edge(idx1, 'g'+str(idx2), weight=int(dist))
-                        G.add_edge('g'+str(idx2), idx1, weight=int(dist))
-
-    #print('Graph with', G.number_of_nodes(), "nodes and", G.number_of_edges(), "edges.")
+                    v_bike = 10000 # meters/hour (10 km/h)
+                    distance = geomG[int(idx1[1:])][idx2]['time']*v_bike # in meters
+                    
+                    # Now, the weight of the edges is the distance required (in m), since it is the attribute we want to minimize
+                    G.add_edge(idx1, 'g'+str(idx2), weight=int(distance))
+                    G.add_edge('g'+str(idx2), idx1, weight=int(distance))
 
     '''
     Min cost flow
@@ -380,16 +382,13 @@ def distribute(geomG, d, stations, requiredBikes, requiredDocks):
             for dst, b in flowDict[src].items():
                 if dst[0] == 'g' and b > 0:
                     idx_dst = int(dst[1:])
-                    print(idx_src, "->", idx_dst, " ", b, "bikes, distance", G.edges[src, dst]['weight'])
+                    print(idx_src, "->", idx_dst, " ", b, "bikes, distance", G.edges[src, dst]['weight'], "m")
                     bikes.at[idx_src, nbikes] -= b
                     bikes.at[idx_dst, nbikes] += b 
                     bikes.at[idx_src, ndocks] += b 
                     bikes.at[idx_dst, ndocks] -= b
 
-    TotalBikes = bikes[nbikes].sum()
-    TotalDocks = bikes[ndocks].sum()
-    #print("Total number of bikes:", TotalBikes)
-    #print("Total number of docks:", TotalDocks)
+    print("The following stations aren't in service so they don't have to satisfy the requirements:")
     print(bikes.loc[(bikes[nbikes] < requiredBikes) | (bikes[ndocks] < requiredDocks)])
 
 
