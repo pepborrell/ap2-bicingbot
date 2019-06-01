@@ -95,7 +95,8 @@ def components(bot, update, user_data):
     G = user_data['G']
     try:
         nccomp = dt.number_of_connected_components(G)
-        bot.send_message(chat_id=update.message.chat_id, text='There are currently %d connected components in your graph' % (nccomp))
+        if nccomp == 1: bot.send_message(chat_id=update.message.chat_id, text='There is currently %d connected component in your graph' % (nccomp))
+        else: bot.send_message(chat_id=update.message.chat_id, text='There are currently %d connected components in your graph' % (nccomp))
     except Exception as e:
         print(e)
         bot.send_message(chat_id=update.message.chat_id, text='An error occurred. Please try again.')

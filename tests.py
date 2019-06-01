@@ -8,7 +8,7 @@ image = plot_graph(G)
 image.save('map.png')
 '''
 
-distribute(G, d, 0, 0)
+distribute(G, d, 3, 2)
 
 #print(number_of_nodes(G))
 #print(number_of_edges(G))
