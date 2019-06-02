@@ -6,8 +6,6 @@ import networkx as nx
 from staticmap import StaticMap, CircleMarker, Line
 
 
-import itertools as it
-
 '''
 Downloads the data from the internet and places the stations in a NetworkX Graph.
 Returns the graph, with the index and position in the node's own data and the
@@ -94,10 +92,12 @@ def grid (G, d, X):
     width = haversine ((xmin, ymin), (xmax, ymin), unit='m')
     height = haversine ((xmin, ymin), (xmin, ymax), unit='m')
 
+    '''
     # To compensate for numerical issues
     epsilon = 10
     width += 10
     height += 10
+    '''
 
     n_columns = int(width // d + 1)
     n_rows = int(height // d + 1)
@@ -114,7 +114,7 @@ Checks wether the possible edges from node obey having a distance < d.
 def check_edge (G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
         distance = haversine(node[1]['pos'],n_node[1]['pos'], unit='m')
-        if (distance < d and n_node != node): #<=?
+        if (distance < d and n_node != node):
             G.add_edge(node[0], n_node[0], time=distance/velocity)
 
 
@@ -138,29 +138,14 @@ def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
             check_edge(G, d, node, nodes_per_square, pos_grid + n_columns + 1, velocity)
 
 '''
-Connects the node with all possible nodes within its own square and the resting eight around it.(Whenever they exist in the grid).
+Connects the node with all the other nodes in the graph.
 Used when adding a new node (origin or destiny from route function defined below).
-'''
-'''
-def neighbours_od (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
-    pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
-    check_edge(G, d, node, nodes_per_square, pos_grid, velocity)
-
-    neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity)
-
-    if pos_grid%n_columns != 0:
-        check_edge(G, d, node, nodes_per_square, pos_grid - 1, velocity)
-    if pos_grid >= n_columns and (pos_grid - n_columns)%n_columns != 0:
-        check_edge(G, d, node, nodes_per_square, pos_grid - n_columns - 1, velocity)
-    if pos_grid < len(nodes_per_square) - n_columns:
-        check_edge(G, d, node, nodes_per_square, pos_grid + n_columns, velocity)
-        if (pos_grid + n_columns)%n_columns != 0:
-            check_edge(G, d, node, nodes_per_square, pos_grid + n_columns - 1, velocity)
 '''
 def neighbours_od(G, node, velocity):
     for onode in list(G.nodes(data=True)):
-        distance = haversine(G.nodes[1]['pos'],onode[1]['pos'], unit='m')
-        G.add_edge(node[0], onode[0], time=distance/velocity)
+        if node != onode:
+            distance = haversine(node[1]['pos'],onode[1]['pos'], unit='m')
+            G.add_edge(node[0], onode[0], time=distance/velocity)
 
 '''
 Connects the nodes of the graph adding edges which obey the condition (distance < d)
@@ -274,7 +259,9 @@ Takes two addresses and returns the image with the route ploted.
 '''
 def plot_route(addresses, G, d, info):
     coords = addressesTOcoordinates(addresses)
-    if coords is None: print("Adreça no trobada")
+    if coords is None:
+        print("Adreça no trobada")
+        return None
     else:
         # We add the origin and the destination positions to the graph as two new nodes (taking d into account)
         coord_origen, coord_desti = coords

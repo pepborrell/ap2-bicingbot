@@ -1,6 +1,6 @@
 # importing the API
 import telegram
-from telegram.ext import Updater, CommandHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
 import os as os
 
@@ -18,14 +18,18 @@ dispatcher = updater.dispatcher
 ############# FUNCTIONS #############
 
 def start(bot, update, user_data):
-    name = update.message.chat.first_name
-    bot.send_message(chat_id=update.message.chat_id, text='Hello %s!\n' % (name))
-    missatge = '''
-    I'm BicingBot, a bot to guide you in your daily cycling routes across Barcelona.
+    try:
+        name = update.message.chat.first_name
+        bot.send_message(chat_id=update.message.chat_id, text='Hello %s!\n' % (name))
+    except:
+        bot.send_message(chat_id=update.message.chat_id, text='Hello!\n')
+    finally:
+        missatge = '''
+        I'm BicingBot, a bot to guide you in your daily cycling routes across Barcelona.
 
-    You can ask for /help, I'm always ready to help you.
-    '''
-    bot.send_message(chat_id=update.message.chat_id, text=missatge, parse_mode=telegram.ParseMode.MARKDOWN)
+        You can ask for /help, I'm always ready to help you.
+        '''
+        bot.send_message(chat_id=update.message.chat_id, text=missatge, parse_mode=telegram.ParseMode.MARKDOWN)
 
     try:
         d = 1000
@@ -118,9 +122,12 @@ def route(bot, update, user_data):
     filename = str(update.message.chat.username) + '.png'
     try:
         image = dt.plot_route(miss_orig, user_data['G'], user_data['d'], user_data['info'])
-        image.save(filename)
-        bot.send_photo(chat_id=update.message.chat_id, photo=open(filename, 'rb'))
-        os.remove(filename)
+        if image is None:
+            bot.send_message(chat_id=update.message.chat_id, text='The directions appear to be wrong. Please make sure they are correct and write them carefully.')
+        else:
+            image.save(filename)
+            bot.send_photo(chat_id=update.message.chat_id, photo=open(filename, 'rb'))
+            os.remove(filename)
     except Exception as e:
         print(e)
         bot.send_message(chat_id=update.message.chat_id, text='An error occurred. Please try again.')
@@ -136,6 +143,11 @@ def distribute(bot, update, user_data, args):
             print(e)
             bot.send_message(chat_id=update.message.chat_id, text='No solution was found or an error occurred. Please try again.')
 
+def unknown_command(bot, update):
+    bot.send_message(chat_id=update.message.chat_id, text="I don't understand this command. Maybe you have misspelled it. Try again.")
+
+def no_command(bot, update):
+    bot.send_message(chat_id=update.message.chat_id, text="Please remember that I'm a bot. I'd like to, but I can't understand you.")
 
 # assigns functions to their commands
 dispatcher.add_handler(CommandHandler('start', start, pass_user_data=True))
@@ -148,6 +160,8 @@ dispatcher.add_handler(CommandHandler('components', components, pass_user_data=T
 dispatcher.add_handler(CommandHandler('plotgraph', plotgraph, pass_user_data=True))
 dispatcher.add_handler(CommandHandler('route', route, pass_user_data=True))
 dispatcher.add_handler(CommandHandler('distribute', distribute, pass_user_data=True, pass_args=True))
+dispatcher.add_handler(MessageHandler(Filters.command, unknown_command))
+dispatcher.add_handler(MessageHandler(Filters.text, no_command))
 
 
 # turns on bot
