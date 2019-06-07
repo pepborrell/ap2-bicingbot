@@ -62,7 +62,7 @@ def authors(bot, update):
     - Josep Borrell Tatché: _josep.borrell@est.fib.upc.edu_
     - Mireia Cavallé Salvadó: _mireia.cavalle@est.fib.upc.edu_
     '''
-	bot.send_message(chat_id=update.message.chat_id, text=info, parse_mode=telegram.ParseMode.MARKDOWN)
+    bot.send_message(chat_id=update.message.chat_id, text=info, parse_mode=telegram.ParseMode.MARKDOWN)
 
 def graph(bot, update, user_data, args):
     try:

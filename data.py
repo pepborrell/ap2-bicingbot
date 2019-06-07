@@ -78,8 +78,8 @@ The input node is a NetworkX graph node.
 Remember: The haversine function wants the input to be 2 tuples of the form (lat, lon)
 '''
 def square(node, xmin, ymin, d, n_columns):
-    x = haversine ((xmin, lon(node)), node[1]['pos'], unit='m')
-    y = haversine ((lat(node), ymin), node[1]['pos'], unit='m')
+    x = haversine((xmin, lon(node)), node[1]['pos'], unit='m')
+    y = haversine((lat(node), ymin), node[1]['pos'], unit='m')
     column = x // d
     row = y // d
     return int(row*n_columns + column)
@@ -89,8 +89,8 @@ Returns a list matching each square with all the nodes within it
 '''
 def grid(G, d, X):
     xmin, ymin, xmax, ymax = X
-    width = haversine ((xmin, ymin), (xmax, ymin), unit='m')
-    height = haversine ((xmin, ymin), (xmin, ymax), unit='m')
+    width = haversine((xmin, ymin), (xmax, ymin), unit='m')
+    height = haversine((xmin, ymin), (xmin, ymax), unit='m')
 
     '''
     # To compensate for numerical issues
@@ -104,7 +104,7 @@ def grid(G, d, X):
 
     nodes_per_square = [[] for i in range(n_columns*n_rows)]
     for node in list(G.nodes(data=True)):
-        sq = square (node, xmin, ymin, d, n_columns)
+        sq = square(node, xmin, ymin, d, n_columns)
         nodes_per_square[sq].append(node)
     return nodes_per_square, n_columns
 
@@ -113,7 +113,7 @@ Checks wether the possible edges from node obey having a distance < d.
 '''
 def check_edge(G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
-        distance = haversine(node[1]['pos'],n_node[1]['pos'], unit='m')
+        distance = haversine(node[1]['pos'], n_node[1]['pos'], unit='m')
         if (distance < d and n_node != node):
             G.add_edge(node[0], n_node[0], time=distance/velocity)
 
@@ -124,17 +124,17 @@ That is: checking the same node square and the ones located below, below-right, 
 (whenever they exist in the grid).
 '''
 def neighbours(G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
-    pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
+    pos_grid = square(node, bbox_coords[0], bbox_coords[1], d, n_columns)
     check_edge(G, d, node, nodes_per_square, pos_grid, velocity)
 
-    if pos_grid%n_columns != n_columns-1:
+    if pos_grid % n_columns != n_columns-1:
         check_edge(G, d, node, nodes_per_square, pos_grid + 1, velocity)
     if pos_grid >= n_columns:
         check_edge(G, d, node, nodes_per_square, pos_grid - n_columns, velocity)
-        if (pos_grid - n_columns)%n_columns != n_columns-1:
+        if (pos_grid - n_columns) % n_columns != n_columns-1:
             check_edge(G, d, node, nodes_per_square, pos_grid - n_columns + 1, velocity)
     if pos_grid < len(nodes_per_square) - n_columns:
-        if (pos_grid + n_columns)%n_columns != n_columns-1:
+        if (pos_grid + n_columns) % n_columns != n_columns-1:
             check_edge(G, d, node, nodes_per_square, pos_grid + n_columns + 1, velocity)
 
 '''
@@ -144,7 +144,7 @@ Used when adding a new node (origin or destiny from route function defined below
 def neighbours_od(G, node, velocity):
     for onode in list(G.nodes(data=True)):
         if node != onode:
-            distance = haversine(node[1]['pos'],onode[1]['pos'], unit='m')
+            distance = haversine(node[1]['pos'], onode[1]['pos'], unit='m')
             G.add_edge(node[0], onode[0], time=distance/velocity)
 
 '''
@@ -152,11 +152,11 @@ Connects the nodes of the graph adding edges which obey the condition (distance 
 and own a weight value that represents the time needed to go through.
 '''
 def get_edges(G, d):
-    bbox_coords = bbox (G)
-    bike_v = 10000 # meters/hour (10 km/h)
-    nodes_per_square, n_columns = grid (G, d, bbox_coords)
+    bbox_coords = bbox(G)
+    bike_v = 10000  # meters/hour (10 km/h)
+    nodes_per_square, n_columns = grid(G, d, bbox_coords)
     for node in list(G.nodes(data=True)):
-        neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, bike_v)
+        neighbours(G, d, node, nodes_per_square, bbox_coords, n_columns, bike_v)
     return nodes_per_square, bbox_coords, n_columns
 
 '''
@@ -245,9 +245,9 @@ Returns the shortest path in time between two given addresses
 taking into account the corresponding velocities when walking or by bike.
 '''
 def route(G, d, info):
-    walk_v = 4000 # meters/hour (4 km/h)
-    neighbours_od (G, ('o', G.nodes['o']), walk_v)
-    neighbours_od (G, ('d', G.nodes['d']), walk_v)
+    walk_v = 4000  # meters/hour (4 km/h)
+    neighbours_od(G, ('o', G.nodes['o']), walk_v)
+    neighbours_od(G, ('d', G.nodes['d']), walk_v)
 
     path = nx.shortest_path(G, source='o', target='d', weight='time')
     return path
@@ -297,13 +297,13 @@ def distribute(geomG, d, requiredBikes, requiredDocks):
     nbikes = 'num_bikes_available'
     ndocks = 'num_docks_available'
     status = 'status'
-    bikes = bikes[[nbikes, ndocks, status]] # We only select the interesting columns
+    bikes = bikes[[nbikes, ndocks, status]]  # We only select the interesting columns
 
     '''
     Attributes of the graph
     '''
     G = nx.DiGraph()
-    G.add_node('TOP') # The green node
+    G.add_node('TOP')  # The green node
     demand = 0
 
     for st in bikes.itertuples():
@@ -343,10 +343,10 @@ def distribute(geomG, d, requiredBikes, requiredDocks):
     # Connects the graph G with the Geometric graph geomG
     for idx1 in G.nodes():
         if idx1[0] == 'g':
-            if bikes.at[int(idx1[1:]), 'status'] == "IN_SERVICE": # Considers only the stations that are in service
+            if bikes.at[int(idx1[1:]), 'status'] == "IN_SERVICE":  # Considers only the stations that are in service
                 for idx2 in geomG[int(idx1[1:])]:
-                    v_bike = 10000 # meters/hour (10 km/h)
-                    distance = geomG[int(idx1[1:])][idx2]['time']*v_bike # in meters
+                    v_bike = 10000  # meters/hour (10 km/h)
+                    distance = geomG[int(idx1[1:])][idx2]['time']*v_bike  # in meters
 
                     # Now, the weight of the edges is the distance required (in m), since it is the attribute we want to minimize
                     G.add_edge(idx1, 'g'+str(idx2), weight=int(distance))
@@ -357,7 +357,7 @@ def distribute(geomG, d, requiredBikes, requiredDocks):
     '''
     err = False
     try:
-        flowCost, flowDict = nx.network_simplex(G ,demand='demand', capacity='capacity', weight='weight')
+        flowCost, flowDict = nx.network_simplex(G, demand='demand', capacity='capacity', weight='weight')
 
     except nx.NetworkXUnfeasible:
         err = True
