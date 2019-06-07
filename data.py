@@ -25,13 +25,13 @@ def get_nodes():
 '''
 Returns the latitude of a node.
 '''
-def lat (node):
+def lat(node):
     return node[1]['pos'][0]
 
 '''
 Returns the longitude of a node.
 '''
-def lon (node):
+def lon(node):
     return node[1]['pos'][1]
 
 '''
@@ -48,7 +48,7 @@ a linear cost instead of a quadratic one.
 '''
 Returns the dimensions of the corresponding bounding box of G and the minimum longitude and latitude.
 '''
-def bbox (G):
+def bbox(G):
     # We initialize the maximums and minimums of longitude and latitude to the first node
     position = G.nodes[1]['pos']
     xmax = xmin = position[0]
@@ -77,7 +77,7 @@ In this way, a node in column x and row y is in the square number y*n + x,
 The input node is a NetworkX graph node.
 Remember: The haversine function wants the input to be 2 tuples of the form (lat, lon)
 '''
-def square (node, xmin, ymin, d, n_columns):
+def square(node, xmin, ymin, d, n_columns):
     x = haversine ((xmin, lon(node)), node[1]['pos'], unit='m')
     y = haversine ((lat(node), ymin), node[1]['pos'], unit='m')
     column = x // d
@@ -87,7 +87,7 @@ def square (node, xmin, ymin, d, n_columns):
 '''
 Returns a list matching each square with all the nodes within it
 '''
-def grid (G, d, X):
+def grid(G, d, X):
     xmin, ymin, xmax, ymax = X
     width = haversine ((xmin, ymin), (xmax, ymin), unit='m')
     height = haversine ((xmin, ymin), (xmin, ymax), unit='m')
@@ -111,7 +111,7 @@ def grid (G, d, X):
 '''
 Checks wether the possible edges from node obey having a distance < d.
 '''
-def check_edge (G, d, node, nodes_per_square, n_square, velocity):
+def check_edge(G, d, node, nodes_per_square, n_square, velocity):
     for n_node in nodes_per_square[n_square]:
         distance = haversine(node[1]['pos'],n_node[1]['pos'], unit='m')
         if (distance < d and n_node != node):
@@ -123,7 +123,7 @@ Connects the node with the nodes of the minimum necessary squares around it.
 That is: checking the same node square and the ones located below, below-right, right, above-right of it
 (whenever they exist in the grid).
 '''
-def neighbours (G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
+def neighbours(G, d, node, nodes_per_square, bbox_coords, n_columns, velocity):
     pos_grid = square (node, bbox_coords[0], bbox_coords[1], d, n_columns)
     check_edge(G, d, node, nodes_per_square, pos_grid, velocity)
 
@@ -385,16 +385,3 @@ def distribute(geomG, d, requiredBikes, requiredDocks):
         else:
             str_out += 'There is no edge with cost greater than 0.\n'
         return str_out
-
-        # We update the status of the stations according to the calculated transportation of bicycles
-        for src in flowDict:
-            if src[0] != 'g': continue
-            idx_src = int(src[1:])
-            for dst, b in flowDict[src].items():
-                if dst[0] == 'g' and b > 0:
-                    idx_dst = int(dst[1:])
-                    print(idx_src, "->", idx_dst, " ", b, "bikes, distance", G.edges[src, dst]['weight'], "m")
-                    bikes.at[idx_src, nbikes] -= b
-                    bikes.at[idx_dst, nbikes] += b
-                    bikes.at[idx_src, ndocks] += b
-                    bikes.at[idx_dst, ndocks] -= b
