@@ -1,5 +1,5 @@
 # AP2-bicingbot
-AP2 project. Telegram's bot for Bicing.
+Algorithmics and Programming 2 project. Telegram bot for Bicing.
 
 The present Telegram's bot _Inflitrats_BicingBot_ answers textually and graphically (using maps) questions about geometric graphs representing the bicing stations in Barcelona.
 
